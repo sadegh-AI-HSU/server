@@ -1,4 +1,4 @@
-﻿import requests
+import requests
 import time
 import datetime
 import json
@@ -14,9 +14,8 @@ SUPPORT_USER_ID = 1411467910
 
 BASE_URL = f"https://tapi.bale.ai/bot{TOKEN}"
 
-# ✅ مسیر مطلق فایل قالب (حل مشکل Package not found)
-BASE_DIR = os.path.dirname(os.path.abspath(__file__))
-TEMPLATE_FILE = os.path.join(BASE_DIR, "template.docx")
+# ✅ مسیر مطلق و تضمینی برای template.docx در کانتینر داکر
+TEMPLATE_FILE = "/app/template.docx"
 
 last_update_id = 0
 
@@ -41,25 +40,6 @@ STATE_REVIEW = "REVIEW"
 # ==========================================
 # توابع کمکی API بله
 # ==========================================
-def generate_and_send_files(chat_id, data):
-    send_message(chat_id, "⏳ در حال تنظیم نظریه و تولید فایل‌ها...")
-    
-    # ✅ تست: لیست فایل‌های موجود در پوشه
-    import os
-    files_in_dir = os.listdir('/app')
-    send_message(chat_id, f"📁 فایل‌های موجود در /app:\n{files_in_dir}")
-    
-    # ✅ بررسی وجود فایل قالب
-    if not os.path.exists(TEMPLATE_FILE):
-        error_msg = (
-            f"❌ فایل قالب پیدا نشد!\n\n"
-            f"ربات دقیقاً در این مسیر به دنبال فایل می‌گردد:\n"
-            f"`{TEMPLATE_FILE}`\n\n"
-            f"فایل‌های موجود:\n{files_in_dir}"
-        )
-        send_message(chat_id, error_msg)
-        print(error_msg)
-        return
 def send_message(chat_id, text, reply_markup=None):
     url = f"{BASE_URL}/sendMessage"
     data = {"chat_id": chat_id, "text": text, "parse_mode": "Markdown"}
@@ -110,15 +90,15 @@ def build_review_text(data):
     return (
         "📋 *خلاصه اطلاعات پرونده (حالت شیشه‌ای)*\n"
         "━━━━━━━━━━━━━━━━━━\n"
-        f" نوع پرونده: {data.get('case_type', 'ثبت نشده')}\n"
+        f"🔸 نوع پرونده: {data.get('case_type', 'ثبت نشده')}\n"
         f"🔸 شماره پرونده: {data.get('case_num', 'ثبت نشده')}\n"
         f"🔸 کلاسه بایگانی: {data.get('class_num', 'ثبت نشده')}\n"
         f"🔸 دادگاه: {data.get('court', 'ثبت نشده')}\n"
         f"🔸 خواهان: {data.get('p_name', 'ثبت نشده')} (کدملی: {data.get('p_nid', 'ثبت نشده')})\n"
         f"🔸 خوانده: {data.get('d_name', 'ثبت نشده')} (کدملی: {data.get('d_nid', 'ثبت نشده')})\n"
         f"🔸 بیوگرافی: {data.get('bio', 'ثبت نشده')}\n"
-        f"🔸 دستور دادگاه: {data.get('court_req', 'ثبت نشده')}\n"
-        f"🔸 نظر کارشناس: {data.get('expert_op', 'ثبت نشده')}\n"
+        f" دستور دادگاه: {data.get('court_req', 'ثبت نشده')}\n"
+        f" نظر کارشناس: {data.get('expert_op', 'ثبت نشده')}\n"
         "━━━━━━━━━━━━━━━━━━\n"
         "برای ویرایش هر بخش روی دکمه آن کلیک کنید. در صورت تایید، 'ثبت نهایی' را بزنید."
     )
@@ -140,12 +120,12 @@ def get_review_keyboard():
     return {
         "inline_keyboard": [
             [{"text": "✏️ ویرایش نوع پرونده", "callback_data": "edit_type"}],
-            [{"text": "✏️ ویرایش شماره/کلاسه/دادگاه", "callback_data": "edit_case_info"}],
+            [{"text": "️ ویرایش شماره/کلاسه/دادگاه", "callback_data": "edit_case_info"}],
             [{"text": "✏️ ویرایش خواهان", "callback_data": "edit_plaintiff"}],
             [{"text": "✏️ ویرایش خوانده", "callback_data": "edit_defendant"}],
             [{"text": "✏️ ویرایش بیوگرافی", "callback_data": "edit_bio"}],
             [{"text": "✏️ ویرایش خواسته دادگاه", "callback_data": "edit_court_req"}],
-            [{"text": "️ ویرایش نظر کارشناس", "callback_data": "edit_expert_op"}],
+            [{"text": "✏️ ویرایش نظر کارشناس", "callback_data": "edit_expert_op"}],
             [{"text": "✅ ثبت نهایی و دریافت فایل Word/PDF", "callback_data": "finalize_report"}]
         ]
     }
@@ -156,21 +136,43 @@ def get_review_keyboard():
 def generate_and_send_files(chat_id, data):
     send_message(chat_id, "⏳ در حال تنظیم نظریه و تولید فایل‌ها...")
     
-    # ✅ بررسی وجود فایل قالب
-    if not os.path.exists(TEMPLATE_FILE):
+    # ✅ بررسی وجود فایل قالب با مسیرهای مختلف
+    possible_paths = [
+        "/app/template.docx",
+        "./template.docx",
+        os.path.join(os.getcwd(), "template.docx"),
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), "template.docx")
+    ]
+    
+    template_found = None
+    for path in possible_paths:
+        if os.path.exists(path):
+            template_found = path
+            break
+    
+    if not template_found:
+        # لیست فایل‌های موجود برای دیباگ
+        try:
+            files_in_app = os.listdir('/app')
+        except:
+            files_in_app = os.listdir('.')
+        
         error_msg = (
             f"❌ فایل قالب پیدا نشد!\n\n"
-            f"ربات دقیقاً در این مسیر به دنبال فایل می‌گردد:\n"
-            f"`{TEMPLATE_FILE}`\n\n"
-            f"لطفاً فایل template.docx را دقیقاً در همین مسیر کپی کنید."
+            f"مسیرهای بررسی شده:\n"
+            f"{chr(10).join(possible_paths)}\n\n"
+            f"فایل‌های موجود در پوشه:\n"
+            f"{chr(10).join(files_in_app)}"
         )
         send_message(chat_id, error_msg)
         print(error_msg)
         return
     
+    print(f"✅ فایل قالب پیدا شد: {template_found}")
+    
     try:
         # 1. بارگذاری قالب
-        tpl = DocxTemplate(TEMPLATE_FILE)
+        tpl = DocxTemplate(template_found)
         
         # 2. نگاشت داده‌ها به متغیرهای قالب
         context = {
@@ -187,13 +189,17 @@ def generate_and_send_files(chat_id, data):
         # 3. رندر و ذخیره ورد
         tpl.render(context)
         safe_class = str(data.get('class_num', '000')).replace('/', '_').replace(' ', '_')
-        word_filename = f"نظریه_کارشناسی_{safe_class}.docx"
-        pdf_filename = f"نظریه_کارشناسی_{safe_class}.pdf"
+        word_filename = f"/tmp/nazariye_{safe_class}.docx"
+        pdf_filename = f"/tmp/nazariye_{safe_class}.pdf"
         
         tpl.save(word_filename)
         
-        # 4. تبدیل به PDF
-        convert(word_filename, pdf_filename)
+        # 4. تبدیل به PDF با LibreOffice (سازگار با لینوکس)
+        import subprocess
+        subprocess.run([
+            'libreoffice', '--headless', '--convert-to', 'pdf',
+            '--outdir', '/tmp', word_filename
+        ], check=True)
         
         # 5. ارسال فایل‌ها در بله
         send_document(chat_id, word_filename, "📄 فایل Word نظریه کارشناسی")
@@ -208,7 +214,8 @@ def generate_and_send_files(chat_id, data):
         if os.path.exists(pdf_filename): os.remove(pdf_filename)
         
     except Exception as e:
-        send_message(chat_id, f"❌ خطا در تولید فایل: {str(e)}\nلطفاً بررسی کنید فایل {TEMPLATE_FILE} در پوشه ربات موجود باشد و نرم‌افزار Word نصب باشد.")
+        send_message(chat_id, f"❌ خطا در تولید فایل: {str(e)}")
+        print(f"Error: {e}")
 
 # ==========================================
 # پردازش پیام‌ها و دکمه‌ها
@@ -284,17 +291,17 @@ def handle_message(message):
     elif current_state == STATE_CLASS_NUM:
         save_data(chat_id, "class_num", text)
         set_state(chat_id, STATE_COURT)
-        send_message(chat_id, " لطفاً *نام دادگاه رسیدگی کننده* را وارد کنید:")
+        send_message(chat_id, "🔹 لطفاً *نام دادگاه رسیدگی کننده* را وارد کنید:")
         
     elif current_state == STATE_COURT:
         save_data(chat_id, "court", text)
         set_state(chat_id, STATE_P_NAME)
-        send_message(chat_id, " *مشخصات خواهان*\n\n نام و نام خانوادگی خواهان را وارد کنید:")
+        send_message(chat_id, "👤 *مشخصات خواهان*\n\n🔹 نام و نام خانوادگی خواهان را وارد کنید:")
         
     elif current_state == STATE_P_NAME:
         save_data(chat_id, "p_name", text)
         set_state(chat_id, STATE_P_NID)
-        send_message(chat_id, " کد ملی خواهان را وارد کنید:")
+        send_message(chat_id, "🔹 کد ملی خواهان را وارد کنید:")
         
     elif current_state == STATE_P_NID:
         save_data(chat_id, "p_nid", text)
@@ -309,17 +316,17 @@ def handle_message(message):
     elif current_state == STATE_D_NID:
         save_data(chat_id, "d_nid", text)
         set_state(chat_id, STATE_BIO)
-        send_message(chat_id, "📖 لطفاً *بیوگرافی و شرح حال مختصر* طرفین را وارد کنید:")
+        send_message(chat_id, " لطفاً *بیوگرافی و شرح حال مختصر* طرفین را وارد کنید:")
         
     elif current_state == STATE_BIO:
         save_data(chat_id, "bio", text)
         set_state(chat_id, STATE_COURT_REQ)
-        send_message(chat_id, "️ لطفاً *خواسته و دستور مقام قضایی* را وارد کنید:")
+        send_message(chat_id, "⚖️ لطفاً *خواسته و دستور مقام قضایی* را وارد کنید:")
         
     elif current_state == STATE_COURT_REQ:
         save_data(chat_id, "court_req", text)
         set_state(chat_id, STATE_EXPERT_OP)
-        send_message(chat_id, "📝 و در نهایت، لطفاً *نظریه نهایی کارشناسی* خود را وارد کنید:")
+        send_message(chat_id, " و در نهایت، لطفاً *نظریه نهایی کارشناسی* خود را وارد کنید:")
         
     elif current_state == STATE_EXPERT_OP:
         save_data(chat_id, "expert_op", text)
@@ -350,6 +357,18 @@ def get_updates():
 
 def main():
     print("🤖 ربات در حال راه‌اندازی...")
+    
+    # بررسی وجود فایل template در شروع
+    print(f"📁 مسیر جستجوی قالب: {TEMPLATE_FILE}")
+    if os.path.exists(TEMPLATE_FILE):
+        print(f"✅ فایل قالب پیدا شد: {TEMPLATE_FILE}")
+    else:
+        print(f"⚠️ فایل قالب در {TEMPLATE_FILE} یافت نشد!")
+        try:
+            print(f"📂 فایل‌های موجود در /app: {os.listdir('/app')}")
+        except:
+            print(f"📂 فایل‌های موجود در پوشه فعلی: {os.listdir('.')}")
+    
     url = f"{BASE_URL}/getMe"
     response = requests.get(url)
     result = response.json()
