@@ -6,14 +6,15 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 WORKDIR /app
 
-COPY requirements.txt .
+# کپی تک‌تک فایل‌ها به صورت صریح
+COPY requirements.txt ./requirements.txt
 RUN pip install --no-cache-dir -r requirements.txt
 
-# کپی صریح فایل template.docx
-COPY template.docx /app/template.docx
+COPY template.docx ./template.docx
+COPY main.py ./main.py
 
-# کپی بقیه فایل‌ها
-COPY . .
+# تنظیم permissions
+RUN chmod 644 ./template.docx
 
 RUN useradd -m appuser && chown -R appuser:appuser /app
 USER appuser
