@@ -1,0 +1,3 @@
+﻿   requests
+   docxtpl
+   docx2pdf
