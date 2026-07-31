@@ -41,6 +41,25 @@ STATE_REVIEW = "REVIEW"
 # ==========================================
 # توابع کمکی API بله
 # ==========================================
+def generate_and_send_files(chat_id, data):
+    send_message(chat_id, "⏳ در حال تنظیم نظریه و تولید فایل‌ها...")
+    
+    # ✅ تست: لیست فایل‌های موجود در پوشه
+    import os
+    files_in_dir = os.listdir('/app')
+    send_message(chat_id, f"📁 فایل‌های موجود در /app:\n{files_in_dir}")
+    
+    # ✅ بررسی وجود فایل قالب
+    if not os.path.exists(TEMPLATE_FILE):
+        error_msg = (
+            f"❌ فایل قالب پیدا نشد!\n\n"
+            f"ربات دقیقاً در این مسیر به دنبال فایل می‌گردد:\n"
+            f"`{TEMPLATE_FILE}`\n\n"
+            f"فایل‌های موجود:\n{files_in_dir}"
+        )
+        send_message(chat_id, error_msg)
+        print(error_msg)
+        return
 def send_message(chat_id, text, reply_markup=None):
     url = f"{BASE_URL}/sendMessage"
     data = {"chat_id": chat_id, "text": text, "parse_mode": "Markdown"}
